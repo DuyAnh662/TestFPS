@@ -25,11 +25,29 @@
             padding: 5px 8px;
             border-radius: 5px;
         }
+        #controls {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            color: #fff;
+            font-family: sans-serif;
+            font-size: 14px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 10px;
+            border-radius: 5px;
+        }
+        #particleSlider {
+            width: 200px;
+        }
     </style>
 </head>
 <body>
     <canvas id="vanGoghCanvas"></canvas>
     <div id="fpsCounter">FPS: 0</div>
+    <div id="controls">
+        <label for="particleSlider">Số hạt: <span id="particleCountLabel">10000</span></label><br>
+        <input type="range" id="particleSlider" min="1000" max="100000" value="10000" step="1000">
+    </div>
 
     <script>
         const canvas = document.getElementById('vanGoghCanvas');
@@ -37,6 +55,7 @@
 
         let particlesArray;
         let animationFrameId;
+        let numberOfParticles = 10000; // mặc định
 
         const colors = {
             sky: ["#0B3B89", "#1A5BAA", "#3B8AD9", "#89C4F4", "#F2E8C9"],
@@ -112,7 +131,6 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             particlesArray = [];
-            const numberOfParticles = 1000;
             
             for (let i = 0; i < numberOfParticles; i++) {
                 let x = Math.random() * canvas.width;
@@ -150,7 +168,6 @@
         // FPS đo
         const fpsCounter = document.getElementById("fpsCounter");
         let lastFrameTime = performance.now();
-        let frameCount = 0;
         let fps = 0;
         let fpsHistory = [];
         let minFPS = Infinity, maxFPS = 0;
@@ -160,7 +177,6 @@
             const delta = (now - lastFrameTime) / 1000;
             lastFrameTime = now;
             fps = 1 / delta;
-            frameCount++;
 
             fpsHistory.push(fps);
             if (fps < minFPS) minFPS = fps;
@@ -188,6 +204,18 @@
         }
 
         window.addEventListener('resize', () => {
+            cancelAnimationFrame(animationFrameId);
+            init();
+            animate();
+        });
+
+        // slider điều chỉnh số hạt
+        const slider = document.getElementById("particleSlider");
+        const label = document.getElementById("particleCountLabel");
+
+        slider.addEventListener("input", () => {
+            numberOfParticles = parseInt(slider.value);
+            label.textContent = numberOfParticles;
             cancelAnimationFrame(animationFrameId);
             init();
             animate();
