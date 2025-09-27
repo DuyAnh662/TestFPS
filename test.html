@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bức tranh Van Gogh chuyển động</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #020919;
+        }
+        canvas {
+            display: block;
+        }
+        #fpsCounter {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff99;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 8px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="vanGoghCanvas"></canvas>
+    <div id="fpsCounter">FPS: 0</div>
+
+    <script>
+        const canvas = document.getElementById('vanGoghCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let particlesArray;
+        let animationFrameId;
+
+        const colors = {
+            sky: ["#0B3B89", "#1A5BAA", "#3B8AD9", "#89C4F4", "#F2E8C9"],
+            moon: ["#F2E8C9", "#F2D57E", "#F2B90C", "#F2A20C", "#F28B0C"],
+            field: ["#F2B90C", "#D99B0B", "#A67408", "#734D05", "#402A02"],
+            cypress: ["#011C0D", "#022E15", "#044F24", "#067034", "#089144"],
+            mountains: ["#022E15", "#0B3B89", "#1A5BAA", "#044F24", "#3B8AD9"]
+        };
+
+        class Particle {
+            constructor(x, y, color, speed, life) {
+                this.x = x;
+                this.y = y;
+                this.originX = x;
+                this.originY = y;
+                this.prevX = x;
+                this.prevY = y;
+                this.color = color;
+                this.speed = speed;
+                this.life = life || 100 + Math.random() * 200;
+                this.initialLife = this.life;
+                this.size = Math.random() * 2.5 + 1;
+                this.angle = 0;
+                this.va = Math.random() * 0.1 - 0.05;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.prevX, this.prevY);
+                ctx.lineTo(this.x, this.y);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.size;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            update() {
+                this.prevX = this.x;
+                this.prevY = this.y;
+
+                this.life--;
+                if (this.life <= 0) {
+                    this.reset();
+                }
+
+                const centerX = canvas.width * 0.8;
+                const centerY = canvas.height * 0.2;
+                const dx = this.x - centerX;
+                const dy = this.y - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                let forceAngle = Math.atan2(dy, dx) + Math.PI / 2;
+                let noise = (Math.sin(this.y * 0.01) + Math.cos(this.x * 0.01)) * 0.5;
+                forceAngle += noise;
+
+                const forceMagnitude = 1 - (distance / (canvas.width * 0.5));
+                
+                this.x += Math.cos(forceAngle) * this.speed * forceMagnitude;
+                this.y += Math.sin(forceAngle) * this.speed * forceMagnitude;
+            }
+
+            reset() {
+                this.life = 100 + Math.random() * 200;
+                this.initialLife = this.life;
+                this.x = this.originX;
+                this.y = this.originY;
+                this.prevX = this.x;
+                this.prevY = this.y;
+            }
+        }
+        
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particlesArray = [];
+            const numberOfParticles = 1000;
+            
+            for (let i = 0; i < numberOfParticles; i++) {
+                let x = Math.random() * canvas.width;
+                let y = Math.random() * canvas.height;
+                let particleColor, speed;
+
+                if (y < canvas.height * 0.5) {
+                    particleColor = colors.sky[Math.floor(Math.random() * colors.sky.length)];
+                    speed = Math.random() * 1.5 + 0.5;
+                } else if (y < canvas.height * 0.65) {
+                    particleColor = colors.mountains[Math.floor(Math.random() * colors.mountains.length)];
+                    speed = Math.random() * 0.3 + 0.1;
+                } else {
+                    particleColor = colors.field[Math.floor(Math.random() * colors.field.length)];
+                    speed = Math.random() * 0.5 + 0.2;
+                }
+                
+                if (Math.random() < 0.15 && x > canvas.width * 0.65 && x < canvas.width * 0.8 && y > canvas.height * 0.4) {
+                     particleColor = colors.cypress[Math.floor(Math.random() * colors.cypress.length)];
+                     speed = Math.random() * 0.8 + 0.2;
+                }
+
+                const moonX = canvas.width * 0.8;
+                const moonY = canvas.height * 0.2;
+                const distToMoon = Math.sqrt((x - moonX)**2 + (y-moonY)**2);
+                if (distToMoon < canvas.width * 0.05) {
+                    particleColor = colors.moon[Math.floor(Math.random() * colors.moon.length)];
+                    speed = Math.random() * 1.0 + 0.5;
+                }
+                
+                particlesArray.push(new Particle(x, y, particleColor, speed));
+            }
+        }
+
+        // FPS đo
+        const fpsCounter = document.getElementById("fpsCounter");
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fps = 0;
+        let fpsHistory = [];
+        let minFPS = Infinity, maxFPS = 0;
+
+        function updateFPS() {
+            const now = performance.now();
+            const delta = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            fps = 1 / delta;
+            frameCount++;
+
+            fpsHistory.push(fps);
+            if (fps < minFPS) minFPS = fps;
+            if (fps > maxFPS) maxFPS = fps;
+
+            if (fpsHistory.length > 100) fpsHistory.shift();
+
+            const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+            
+            fpsCounter.textContent = 
+                `FPS: ${fps.toFixed(1)} | TB: ${avgFPS.toFixed(1)} | Min: ${minFPS.toFixed(1)} | Max: ${maxFPS.toFixed(1)}`;
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(2, 9, 25, 0.1)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+
+            updateFPS();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            cancelAnimationFrame(animationFrameId);
+            init();
+            animate();
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
